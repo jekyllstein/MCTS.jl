@@ -1,0 +1,7 @@
+name = "MCTS"
+uuid = "dac6b303-fdac-48c1-9f18-7af9a7634e9d"
+authors = ["Jason Eckstein <jekyllstein@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+Game2048 = "1518badf-864b-4d38-82d7-871a0e9c2f48"

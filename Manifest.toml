@@ -1,0 +1,8 @@
+# This file is machine-generated - editing it directly is not advised
+
+[[Game2048]]
+git-tree-sha1 = "02dd68e3c159cc6b9a480cbea2545744c29ab7c7"
+repo-rev = "master"
+repo-url = "https://github.com/jekyllstein/Game2048.jl"
+uuid = "1518badf-864b-4d38-82d7-871a0e9c2f48"
+version = "0.1.0"
