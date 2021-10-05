@@ -1,5 +1,10 @@
 module MCTS
 
+#repository from book authors https://github.com/algorithmsbooks/DecisionMakingProblems.jl which contains some of the basic functions and data structures and functions in the book as well as game environments
+using DecisionMakingProblems
+
+export DecisionMakingProblems, MDP, MonteCarloTreeSearch
+
 #goal is to first use the basic functionality in the game2048 forked package and put it into a structure where the code from the algorithms book can be used with it
 
 #the following code is copied from Appendix G.5 of the book found here: https://algorithmsbook.com/
@@ -18,14 +23,15 @@ end
 Base.argmax(f::Function, xs) = findmax(f, xs)[2]
 
 #the following code is copied from Chapter 7 of the book found here: https://algorithmsbook.com/
-struct MDP
-    γ # discount factor
-    𝒮 # state space
-    𝒜 # action space
-    T # transition function
-    R # reward function
-    TR # sample transition and reward
-end
+# struct MDP
+#     γ # discount factor
+#     𝒮 # state space
+#     𝒜 # action space
+#     T # transition function
+#     R # reward function
+#     TR # sample transition and reward
+# end
+import DecisionMakingProblems.MDP #same struct as found in their module
 
 function lookahead(𝒫::MDP, U, s, a)
     𝒮, T, R, γ = 𝒫.𝒮, 𝒫.T, 𝒫.R, 𝒫.γ
