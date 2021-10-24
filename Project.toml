@@ -4,5 +4,7 @@ authors = ["Jason Eckstein <jekyllstein@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 DecisionMakingProblems = "ea2de46e-05ef-43e3-9855-7b86b16e70ab"
 Game2048 = "1518badf-864b-4d38-82d7-871a0e9c2f48"
+LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
