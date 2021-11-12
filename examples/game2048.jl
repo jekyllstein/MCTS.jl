@@ -1,5 +1,5 @@
 using Game2048
-using MCTS
+using MCTSExperiments
 
 board = initbboard()
 
