@@ -97,13 +97,13 @@ d and m should just be integers
 =#
 
 struct MonteCarloTreeSearch
-    𝒫 # problem
-    N # visit counts
-    Q # action value estimates
-    d # depth
-    m # number of simulations
-    c # exploration constant
-    U # value function estimate
+    𝒫::MDP # problem
+    N::Dict # visit counts
+    Q::Dict # action value estimates
+    d::Integer # depth
+    m::Integer # number of simulations
+    c::AbstractFloat # exploration constant
+    U::Function # value function estimate
 end
 
 function (π::MonteCarloTreeSearch)(s)
