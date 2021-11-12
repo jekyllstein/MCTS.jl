@@ -1,4 +1,4 @@
-module MCTS
+module MCTSExperiments
 
 #repository from book authors https://github.com/algorithmsbooks/DecisionMakingProblems.jl which contains some of the basic functions and data structures and functions in the book as well as game environments
 using DecisionMakingProblems
