@@ -1,4 +1,4 @@
-using MCTS
+using MCTSExperiments
 using BenchmarkTools
 using Statistics
 using StatsBase
@@ -50,7 +50,7 @@ julia> DecisionMakingProblems.print_board(init_board)
 random_2048_policy(board::Board) = rand(DecisionMakingProblems.DIRECTIONS)
 
 #returns the future disconted reward for rolling out the policy for the number of steps as specified by d
-run_random_2048_rollout(d::Integer, board::Board) = MCTS.rollout(mdp_2048, board, random_2048_policy, d)
+run_random_2048_rollout(d::Integer, board::Board) = MCTSExperiments.rollout(mdp_2048, board, random_2048_policy, d)
 
 #generate statistics on the random policy playing for 100 moves
 random_2048_rollouts = [run_random_2048_rollout(100, init_board) for _ in 1:10000]
@@ -71,7 +71,7 @@ Maximum:        690.029171
 
 #with this function we can initialize a policy with empty dictionaries
 function create_mcts_policy(U::Function; d = 10, m = 100, c = 100.0)
-    MCTS.MonteCarloTreeSearch(
+    MCTSExperiments.MonteCarloTreeSearch(
         mdp_2048, # 𝒫, MDP problem 
         Dict{Tuple{Board, Action}, Int64}(), # N, visit counts for each state/action pair
         Dict{Tuple{Board, Action}, Float32}(), # Q, action value estimates for each state/action pair
