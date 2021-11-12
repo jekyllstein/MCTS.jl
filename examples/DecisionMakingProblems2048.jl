@@ -497,3 +497,53 @@ Median:         452.500000
 3rd Quartile:   675.000000
 Maximum:        878.000000
 =#
+
+#once again let's compare to the random policy playing a full game to completion
+random_game = play_game(random_2048_policy) #(6272.0f0, 9, 402)
+@benchmark play_game(random_2048_policy) 
+#=
+BenchmarkTools.Trial: 10000 samples with 1 evaluation.
+ Range (min … max):   1.100 μs …  2.417 ms  ┊ GC (min … max): 0.00% … 98.49%
+ Time  (median):     15.200 μs              ┊ GC (median):    0.00%
+ Time  (mean ± σ):   16.396 μs ± 24.848 μs  ┊ GC (mean ± σ):  1.45% ±  0.98%
+
+              ▁▂▄▆█▇█▃██▇▇▇▇▇▅▅▃▃▁▂
+  ▁▁▁▁▁▁▁▂▃▄▅▇█████████████████████▇▇▆▅▅▅▃▄▃▄▃▃▃▃▃▂▃▂▂▂▂▂▁▂▂▁ ▄
+  1.1 μs          Histogram: frequency by time        36.2 μs <
+
+ Memory estimate: 80 bytes, allocs estimate: 4.
+=#
+random_games = [play_game(random_2048_policy) for _ in 1:10000]
+random_game_stats = map(i -> summarystats([a[i] for a in random_games]), 1:3)
+#=
+3-element Vector{StatsBase.SummaryStats}:
+ Summary Stats:
+Length:         10000
+Missing Count:  0
+Mean:           999.621582
+Minimum:        0.000000
+1st Quartile:   616.000000
+Median:         948.000000
+3rd Quartile:   1284.000000
+Maximum:        3408.000000
+
+ Summary Stats:
+Length:         10000
+Missing Count:  0
+Mean:           6.477400
+Minimum:        2.000000
+1st Quartile:   6.000000
+Median:         7.000000
+3rd Quartile:   7.000000
+Maximum:        8.000000
+
+ Summary Stats:
+Length:         10000
+Missing Count:  0
+Mean:           104.739000
+Minimum:        0.000000
+1st Quartile:   80.000000
+Median:         101.000000
+3rd Quartile:   126.000000
+Maximum:        265.000000
+=#
