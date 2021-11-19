@@ -65,12 +65,15 @@ end
 
 randstep(𝒫::MDP, s, a) = 𝒫.TR(s, a)
 
-function rollout(𝒫, s, π, d)
+function rollout(𝒫, s, π, d, isterminal::Function = s -> false)
     ret = 0.0
     for t in 1:d
         a = π(s)
         s, r = randstep(𝒫, s, a)
         ret += 𝒫.γ^(t-1) * r
+        if isterminal(s)
+            break
+        end
     end
     return ret
 end
