@@ -134,16 +134,21 @@ function (π::MonteCarloTreeSearchTreePar)(s)
             simulate!(π, s, i)
         end
     end
-    return argmax(a->reduce((d1, d2) -> combine_dicts(+, d1, d2), π.Q[(s,a)]), π.𝒫.𝒜)
+    Q = reduce((d1, d2) -> combine_dicts(+, d1, d2), π.Q)
+    return argmax(a->Q[(s,a)], π.𝒫.𝒜)
 end
 
 function combine_dicts(op::Function, d1::T, d2::T) where T <: Dict
    dout = T() 
    klist = union(keys(d1), keys(d2))
    for k in klist 
-        v1 = haskey(d1, k) ? d1[k] : 0
-        v2 = haskey(d2, k) ? d2[k] : 0
-        dout[k] = op(v1, v2)
+        if haskey(d1, k) && haskey(d2, k)
+            dout[k] = op(d1[k], d2[k])
+        elseif haskey(d1, k)
+            dout[k] = d1[k]
+        else # elseif(haskey(d2, k))
+            dout[k] = d2[k]
+        end
    end
    return dout
 end
@@ -182,7 +187,7 @@ function simulate!(π::MonteCarloTreeSearchTreePar, s, i, d=π.d)
         end
         return π.U(s)
     end
-    a = explore(π, s)
+    a = explore(π, s, i)
     s′, r = TR(s,a)
     q = r + γ*simulate!(π, s′, i, d-1)
     N[(s,a)] += 1
@@ -198,10 +203,9 @@ function explore(π::MonteCarloTreeSearch, s)
     return argmax(a->Q[(s,a)] + c*bonus(N[(s,a)], Ns), 𝒜)
 end
 
-function explore(π::MonteCarloTreeSearchTreePar, s)
+function explore(π::MonteCarloTreeSearchTreePar, s, i)
     𝒜 = π.𝒫.𝒜
-    N = reduce((d1, d2) -> combine_dicts(+, d1, d2), π.N)
-    Q = reduce((d1, d2) -> combine_dicts(+, d1, d2), π.Q)
+    Q, N = π.Q[i], π.N[i]
     c = π.c
     Ns = sum(N[(s,a)] for a in 𝒜)
     return argmax(a->Q[(s,a)] + c*bonus(N[(s,a)], Ns), 𝒜)
