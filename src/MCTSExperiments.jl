@@ -197,6 +197,22 @@ end
 
 bonus(Nsa, Ns) = Nsa == 0 ? Inf : sqrt(log(Ns)/Nsa)
 
+function node_selection(π::MonteCarloTreeSearchTreePar, s, i, d=π.d)
+#this should return a node to expand by recursively traversing tree from root
+end
+
+function expansion(π::MonteCarloTreeSearchTreePar, s, i, d=π.d)
+#this should expand the node s by selecting an action that has not been previously taken and return the new state
+end
+
+function pseudostats_preupdate(π::MonteCarloTreeSearchTreePar)
+#update O, Q, and N before the simulation
+end
+
+function simulate(π::MonteCarloTreeSearchTreePar, s, i)
+#schedule a simulation for state on idle simulator
+end
+
 function explore(π::MonteCarloTreeSearch, s)
     𝒜, N, Q, c = π.𝒫.𝒜, π.N, π.Q, π.c
     Ns = sum(N[(s,a)] for a in 𝒜)

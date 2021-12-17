@@ -1,3 +1,5 @@
+using Pkg 
+Pkg.activate(@__DIR__)
 include("DecisionMakingProblems2048_utilities.jl")
 using Base.Threads
 
