@@ -5,3 +5,6 @@ version = "0.1.0"
 
 [deps]
 DecisionMakingProblems = "ea2de46e-05ef-43e3-9855-7b86b16e70ab"
+Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
+TailRec = "f6209947-f0a9-4a6b-8802-d6ceac74b6f9"
+ThreadPools = "b189fb0b-2eb5-4ed4-bc0c-d34c51242431"

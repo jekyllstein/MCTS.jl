@@ -3,19 +3,40 @@ using BenchmarkTools
 using Statistics
 using StatsBase
 using DecisionMakingProblems
+using OnlineStats
+using Transducers
+using DataFrames
 
 #some convenience names
-Board = DecisionMakingProblems.Board
+import DecisionMakingProblems.Board
 Action = DecisionMakingProblems.TwentyFortyEightAction
-initial_board = DecisionMakingProblems.initial_board
-print_board = DecisionMakingProblems.print_board
-score_board = DecisionMakingProblems.score_board
+import DecisionMakingProblems.initial_board
+import DecisionMakingProblems.print_board
+import DecisionMakingProblems.score_board
+import DecisionMakingProblems.move
+import DecisionMakingProblems.insert_tile_rand
+import DecisionMakingProblems.draw_tile
+import DecisionMakingProblems.isdone
+import DecisionMakingProblems.DIRECTIONS
+import DecisionMakingProblems.get_max_rank
 #=
 const LEFT = 0x00
 const DOWN = 0x01
 const RIGHT = 0x02
 const UP = 0x03
 =#
+
+import DecisionMakingProblems.transition_and_reward
+
+function transition_and_reward(::TwentyFortyEight, s::Board, a::Action)
+    s′ = move(s, a)
+    if s′ == s # terminal state or illegal action
+        return (s′, -1.0f0)
+    end
+    s′ = insert_tile_rand(s′, draw_tile())
+    r = score_board(s′) - score_board(s)
+    return (s′, r)
+end
 
 twenty_forty_eight = DecisionMakingProblems.TwentyFortyEight(γ=0.99)
 mdp_2048 = DecisionMakingProblems.MDP(twenty_forty_eight)
@@ -37,11 +58,11 @@ MDP
 =#
 
 #create a random policy that selects moves at random from the available 4 directions
-random_2048_policy(board::Board) = rand(DecisionMakingProblems.DIRECTIONS)
+random_2048_policy(board::Board) = rand(DIRECTIONS)
 
 #returns the future disconted reward for rolling out the policy for the number of steps as specified by d
-run_random_2048_rollout(d::Integer, board::Board) = MCTSExperiments.rollout(mdp_2048, board, random_2048_policy, d)
-
+run_random_2048_rollout(board::Board, d::Integer) = rollout(mdp_2048.TR, mdp_2048.γ, board, random_2048_policy, d, isdone)
+run_random_2048_rollout(board::Board) = rollout(mdp_2048.TR, mdp_2048.γ, board, random_2048_policy, isdone)
 
 #now let's create some MCTS policies for 2048 that differ by their value function estimate
 
@@ -57,20 +78,6 @@ function create_mcts_policy(U::Function; d = 10, m = 100, c = 100.0)
         U # value function estimate 
     )
 end
-
-function create_treepar_mcts_policy(U::Function; d = 10, m = 100, c = 100.0, n = 10)
-    MCTSExperiments.MonteCarloTreeSearchTreePar(
-        mdp_2048, # 𝒫, MDP problem 
-        [Dict{Tuple{Board, Action}, Int64}() for _ in 1:n], # N, visit counts for each state/action pair
-        [Dict{Tuple{Board, Action}, Float32}() for _ in 1:n], # Q, action value estimates for each state/action pair
-        d, # maximum depth = 10 by default
-        m, # number of simulations = 100 by default
-        c, # exploration constant = 100 by default
-        U, # value function estimate 
-        n  # number of parallel trees
-    )
-end
-
 
 # Copied the following function to play a game from DecisionMakingProblems but modified it to return the final score and not print anything.  Added illegal move maximum to prevent policies from continuing to attempt illegal moves forever.
  """
