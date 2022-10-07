@@ -7,6 +7,7 @@ using ThreadPools
 using Distributed
 using Base.Threads
 using TailRec
+using Transducers
 
 export DecisionMakingProblems, MDP, MonteCarloTreeSearch, MCTSPar, init_MCTSPar, rollout, UCT, LeafP, RootP, TreeP, WU_UCT, VL_UCT_hard, VL_UCT_soft, BU_UCT, clear_dicts!
 
@@ -70,7 +71,7 @@ end
 
 randstep(𝒫::MDP, s, a) = 𝒫.TR(s, a)
 
-function rollout(TR, γ, s, π, d, isterminal::Function = s -> false)
+function rollout(TR::Function, γ::Float64, s, π, d, isterminal::Function = s -> false)
     ret = 0.0
     t = 1
     while !isterminal(s) && (t <= d)
@@ -82,7 +83,7 @@ function rollout(TR, γ, s, π, d, isterminal::Function = s -> false)
     return (ret, t-1, s)
 end
 
-function rollout(TR, γ, s, π, isterminal::Function = s -> false)
+function rollout(TR::Function, γ::Float64, s, π, isterminal::Function = s -> false)
     ret = 0.0
     t = 1
     while !isterminal(s)
@@ -126,25 +127,25 @@ end
 abstract type MCTSAlgo end
 
 # data structure to accomodate generalized parallel MCTS algorithm published here: https://arxiv.org/abs/2006.08785
-struct MCTSPar{T <: MCTSAlgo} 
+struct MCTSPar{T <: MCTSAlgo, F <: Function, S, A} 
     𝒫::MDP # problem
-    N::Vector{Dict}  # visit counts
-    Q::Vector{Dict}  # action value estimates
-    O::Vector{Dict}  #on-going simulations 
-    O_bar::Vector{Dict} #average across rollouts of on-going simulations
-    R::Vector{Dict} #tree sync stats
-    d::Integer # depth
-    m::Integer # number of simulations
-    c::AbstractFloat # exploration constant
-    U::Function # value function estimate
+    N::Vector{Dict{Tuple{S, A}, Int64}}  # visit counts
+    Q::Vector{Dict{Tuple{S, A}, Float64}}  # action value estimates
+    O::Vector{Dict{Tuple{S, A}, Int64}}  #on-going simulations 
+    O_bar::Vector{Dict{Tuple{S, A}, Float64}} #average across rollouts of on-going simulations
+    R::Vector{Dict{Tuple{S, A}, Vector{Tuple{Float64, Int64}}}} #tree sync stats
+    d::Int64 # depth
+    m::Int64 # number of simulations
+    c::Float64 # exploration constant
+    U::F # value function estimate
     F::Vector{Union{Task, Nothing}} # keeps track of each simulator whether it is occupied, ready to have results fetched, or unassigned
-    M # number of search trees
+    M::Int64 # number of search trees
     algo::T
 end
 
 
 
-function init_MCTSPar(𝒫::MDP, rootstate::S, U::Function, numtrees::Integer, numsims::Integer, algo::T; d = 10, c = 10., m = 1000) where T <: MCTSAlgo where S 
+function init_MCTSPar(𝒫::MDP, rootstate::S, U::Func, numtrees::Integer, numsims::Integer, algo::T; d = 10, c = 10., m = 1000) where T <: MCTSAlgo where S where Func <: Function
     Action = eltype(𝒫.𝒜)
     N = [Dict{Tuple{S, Action}, Int64}() for _ in 1:numtrees]
     Q = [Dict{Tuple{S, Action}, Float64}() for _ in 1:numtrees]
@@ -153,7 +154,7 @@ function init_MCTSPar(𝒫::MDP, rootstate::S, U::Function, numtrees::Integer, n
     R = [Dict{Tuple{S, Action}, Vector{Tuple{Float64, Int64}}}() for _ in 1:numtrees]
     F = Vector{Union{Task, Nothing}}(undef, numsims)
     fill!(F, nothing)
-    MCTSPar{T}(𝒫, N, Q, O, O_bar, R, d, m, c, U, F, numtrees, algo)
+    MCTSPar{T, Func, S, Action}(𝒫, N, Q, O, O_bar, R, d, m, c, U, F, numtrees, algo)
 end
 
 
@@ -202,9 +203,6 @@ calcÑ(pol::MCTSPar{VL_UCT_soft}, s_a, m) = pol.algo.n*pol.O[m][s_a]
 calcQ̄(pol::MCTSPar, s_a, m) = α(pol, s_a, m)*pol.Q[m][s_a] + β(pol, s_a, m)*calcQ̃(pol, s_a, m) 
 calcN̄(pol::MCTSPar, s_a, m) = pol.N[m][s_a] + calcÑ(pol, s_a, m) 
 
-function select_action(pol, m)
-end
-
 function (π::MonteCarloTreeSearch)(s)
     for k in 1:π.m
         simulate!(π, s)
@@ -241,7 +239,7 @@ function simulate!(π::MonteCarloTreeSearch, s, d=π.d)
     return q
 end
 
-function mcts_rollout!(π::MCTSPar, s0, rolloutnum = 1, finishedsims = 0, initiatedsims = 0, m1 = π.M, m2 = 1)
+@tailrec function mcts_rollout!(π::MCTSPar, s0, rolloutnum = 1, finishedsims = 0, initiatedsims = 0, m1 = π.M, m2 = 1)
     #once all simulation tasks are completed, end rollout
     # (unfinishedsims == 0) && return nothing
     (finishedsims == π.m) && return nothing
@@ -305,11 +303,8 @@ end
 
 resetN!(π, N, trajectory) = return nothing
 
-@tailrec function node_selection!(π::MCTSPar, s, n, m, d=π.d, trajectory = [])
-#this should return a node to expand by recursively traversing tree from root and the (s,a) trajectory taken
-    if d ≤ 0
-        return s, trajectory
-    end
+@tailrec function node_selection!(π::MCTSPar, s, n, m, d=π.d, trajectory=Vector{Tuple}())
+    (d == 0) && return (s, trajectory)
     𝒫, N, O, O_bar, Q, c = π.𝒫, π.N[m], π.O[m], π.O_bar[m], π.Q[m], π.c
     𝒜, TR = 𝒫.𝒜, 𝒫.TR
     if !haskey(N, (s, first(𝒜)))
@@ -320,14 +315,17 @@ resetN!(π, N, trajectory) = return nothing
             O[(s,a)] = 0
             O_bar[(s,a)] = 0
         end
-        #for BU_UCT only, this function will reset the visit count of the state 2 visits prior to the new state in order to treat all previous simulation results as 1
-        resetN!(π, N, trajectory)
-        return s, trajectory
+         #for BU_UCT only, this function will reset the visit count of the state 2 visits prior to the new state in order to treat all previous simulation results as 1
+         resetN!(π, N, trajectory)
+         return (s, trajectory)
     end
 
     #if we aren't at maximum depth or a new state, then select a new action with the exploration formula
+    # Ns = foldl(+, Map(a -> calcN̄(π, (s, a), m)), 𝒜)
     Ns = sum(calcN̄(π, (s, a), m) for a in 𝒜)
+
     a = argmax(a-> calcQ̄(π, (s,a), m) + c*bonus(π, Ns, s, a, m), 𝒜)
+    # a = rand(𝒜)
 
     (s_new, r) = TR(s, a)
 

@@ -4,7 +4,7 @@ include("DecisionMakingProblems2048_utilities.jl")
 using Base.Threads
 
 #create a starting board
-init_board = initial_board()
+const init_board = initial_board()
 #=
 julia> DecisionMakingProblems.print_board(init_board)
      0     0     2     0
@@ -20,7 +20,6 @@ random_2048_policy(init_board) #0x02 which corresponds to right
 #=
 5.900 ns (0 allocations: 0 bytes)
 =#
-
 
 function rollout_game_stats(input...; ntrials = 1000)
     xf = 1:ntrials |> Map() do _
@@ -55,6 +54,7 @@ julia> print_board(sfinal)
 
 #also let's get an example board after 10 moves to use for future evaluation
 (_, _, board10) = run_random_2048_rollout(init_board, 10)
+(_, _, board30) = run_random_2048_rollout(init_board, 30)
 #=
 julia> print_board(board10)
      8     0     0     0
@@ -126,14 +126,33 @@ Median:         102.000000
 Maximum:        248.000000
 =#
 
+function combo_rollout(s, n=100)
+    mean(run_random_2048_rollout(s)[1] for _ in 1:n)
+end
+
+#=
+julia> @btime combo_rollout(init_board)
+  995.400 μs (0 allocations: 0 bytes)
+553.216330975926
+=#
+
+
 #now we can initialize a new MCTS policy, single tree not in parallel with a depth of 10, exploration constant of 10, and 1000 simulations with a random rollout of depth 10
-mcts_UCT_1 = init_MCTSPar(mdp_2048, init_board, s -> run_random_2048_rollout(s, 10)[1], 1, 1, UCT(), d = 100, c = 100., m = 1000)
+mcts_UCT_1 = init_MCTSPar(mdp_2048, init_board, s -> run_random_2048_rollout(s)[1], 1, 1, UCT(), d = 100, c = 50., m = 1000)
+mcts_UCT_2 = init_MCTSPar(mdp_2048, init_board, combo_rollout, 1, 1, UCT(), d = 1000, c = 50., m = 1000)
 
 #we can select a move with this policy by calling it on the initial board state
 mcts_UCT_1(init_board, false)
 #=
 julia> @btime mcts_UCT_rollout10_1(init_board)
   35.934 ms (397581 allocations: 13.93 MiB)
+=#
+
+mcts_UCT_2(init_board)
+#=
+julia> @btime mcts_UCT_2(init_board)
+  2.274 s (4575257 allocations: 150.98 MiB)
+0x02
 =#
 
 #inside of any MCTS rollout the tree traversal and node selection happen repeatedly
@@ -147,6 +166,14 @@ julia> @btime MCTSExperiments.node_selection!(mcts_UCT_1, init_board, 1, 1, 100)
 
 #let's see if the policy on the board10 state makes sense
 mcts_UCT_1(board10)
+mcts_UCT_1(board30)
+
+#=
+timing for move selectoin with UCT serial with 1000 simulations at depth 100 with a terminal rollout
+julia> @btime mcts_UCT_1(board10)
+  91.042 ms (918676 allocations: 31.78 MiB)
+0x02
+=#
 
 function play_mcts_UCT_game(rolloutestimatedepth, numrollouts, mctsdepth, c, numsims)
     π = init_MCTSPar(mdp_2048, init_board, s -> mean(run_random_2048_rollout(s, rolloutestimatedepth)[1] for _ in 1:numrollouts), 1, 1, UCT(), d = mctsdepth, c = c, m = numsims)
@@ -161,22 +188,39 @@ julia> @time play_mcts_UCT_game(10000, 1, 100, 50., 100)
 (15736.0f0, 10, 857)
 =#
 
-mcts_treeP_1 = init_MCTSPar(mdp_2048, init_board, s -> run_random_2048_rollout(s, 10000)[1], 1, 20, TreeP(), d = 10, c = 10., m = 100)
+# play_mcts_UCT_game(10000, 10, 100, 50., 100)
+
+mcts_treeP_1 = init_MCTSPar(mdp_2048, init_board, s -> run_random_2048_rollout(s)[1], 1, 20, TreeP(), d = 100, c = 50., m = 1000)
+mcts_treeP_2 = init_MCTSPar(mdp_2048, init_board, combo_rollout, 1, 20, TreeP(), d = 1000, c = 50., m = 1000)
 mcts_treeP_1(init_board)
 mcts_treeP_1(board10)
+#=
+timing for move selectoin with UCT serial with 1000 simulations at depth 100 with a terminal rollout
+julia> @btime mcts_treeP_1(board10)
+  64.660 ms (880953 allocations: 30.65 MiB)
+0x03
+=#
+
+mcts_treeP_2(init_board)
+#=
+julia> @btime mcts_treeP_2(init_board)
+  363.216 ms (4528788 allocations: 148.93 MiB)
+0x02
+=#
 
 function play_mcts_par_game(rolloutestimatedepth, numrollouts, mctsdepth, c, numsims, ntrees, algo, simulators=20)
     π = init_MCTSPar(mdp_2048, init_board, s -> mean(run_random_2048_rollout(s, rolloutestimatedepth)[1] for _ in 1:numrollouts), ntrees, simulators, algo, d = mctsdepth, c = c, m = numsims)
     play_game(s -> π(s))
 end
 
-play_mcts_par_game(1000, 1, 100, 50., 100, 1, TreeP())
+# play_mcts_par_game(10000, 1, 100, 50., 100, 1, TreeP())
 
 #what can we make the evaluation more complex without losing time?
-play_mcts_par_game(1000, 10, 100, 50., 100, 1, TreeP())
-play_mcts_par_game(1000, 100, 100, 50., 200, 1, TreeP())
+# play_mcts_par_game(1000, 10, 100, 50., 100, 1, TreeP())
+play_mcts_par_game(1000, 100, 1000, 50., 200, 1, TreeP())
 
 mcts_rootP_1 = init_MCTSPar(mdp_2048, init_board, s -> run_random_2048_rollout(s, 10000)[1], 1, 20, RootP(), d = 1000, c = 100., m = 1000)
+mcts_rootP_2 = init_MCTSPar(mdp_2048, init_board, s -> mean(run_random_2048_rollout(s)[1] for _ in 1:1000), 1, 20, RootP(), d = 1000, c = 50., m = 1000)
 mcts_rootP_1(init_board)
 mcts_rootP_1(board10)
 
@@ -186,10 +230,18 @@ mcts_WU_UCT_1 = init_MCTSPar(mdp_2048, init_board, s -> run_random_2048_rollout(
 mcts_WU_UCT_1(init_board)
 mcts_WU_UCT_1(board10)
 
-play_mcts_par_game(1000, 100, 100, 50., 100, 1, WU_UCT())
+play_mcts_par_game(1000, 100, 100, 50., 1000, 1, WU_UCT(), 39)
 
 mcts_BU_UCT_1 = init_MCTSPar(mdp_2048, init_board, s -> run_random_2048_rollout(s, 10000)[1], 1, 20, BU_UCT(0.5), d = 1000, c = 100., m = 1000)
+mcts_BU_UCT_2 = init_MCTSPar(mdp_2048, init_board, combo_rollout, 1, 20, BU_UCT(0.5), d = 1000, c = 50., m = 1000)
 mcts_BU_UCT_1(init_board)
 mcts_BU_UCT_1(board10)
 
-play_mcts_par_game(1000, 100, 100, 50., 100, 1, BU_UCT(0.5))
+play_mcts_par_game(1000, 100, 100, 50., 1000, 1, BU_UCT(0.9), 39)
+
+mcts_BU_UCT_2(init_board)
+#=
+julia> @btime mcts_BU_UCT_2(init_board)
+  238.248 ms (2768886 allocations: 85.11 MiB)
+0x02
+=#

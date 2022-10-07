@@ -28,9 +28,14 @@ const UP = 0x03
 
 import DecisionMakingProblems.transition_and_reward
 
+export print_board, initial_board, mdp_2048, random_2048_policy, run_random_2048_rollout, play_game, getgamestats
+
 function transition_and_reward(::TwentyFortyEight, s::Board, a::Action)
+    if isdone(s)
+        return (s, -1.0f0)
+    end
     s′ = move(s, a)
-    if s′ == s # terminal state or illegal action
+    if s′ == s # illegal action
         return (s′, -1.0f0)
     end
     s′ = insert_tile_rand(s′, draw_tile())
@@ -38,8 +43,8 @@ function transition_and_reward(::TwentyFortyEight, s::Board, a::Action)
     return (s′, r)
 end
 
-twenty_forty_eight = DecisionMakingProblems.TwentyFortyEight(γ=0.99)
-mdp_2048 = DecisionMakingProblems.MDP(twenty_forty_eight)
+const twenty_forty_eight = DecisionMakingProblems.TwentyFortyEight(γ=0.99)
+const mdp_2048 = DecisionMakingProblems.MDP(twenty_forty_eight)
 #=
 mdp_2048 is the MDP defining the game with discount factor, action space, reward function, and sample transition and reward defined.  The state space and transition function are not defined.
 julia> dump(mdp_2048)
@@ -86,7 +91,7 @@ The final score is returned.
 Note that this core is "correct" in that we track whether 2 or 4 tiles are generated
 and update the score appropriately.
 """
-function play_game(π::Function; max_illegal = 10)
+function play_game(π::Function; max_illegal = 10000)
     s = initial_board()
 
     # Number of moves.
@@ -128,6 +133,8 @@ function play_game(π::Function; max_illegal = 10)
             scorepenalty += 4
         end
         s = DecisionMakingProblems.insert_tile_rand(s′, tile)
+        println("On move $moveno with a rank of $(get_max_rank(s))") 
+        print_board(s)
     end
     return score_board(s) - scorepenalty, DecisionMakingProblems.get_max_rank(s), moveno
 end

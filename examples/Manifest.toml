@@ -566,7 +566,7 @@ uuid = "e12ccd36-dcad-5f33-8774-9175229e7b33"
 version = "0.4.7"
 
 [[deps.MCTSExperiments]]
-deps = ["DecisionMakingProblems", "Distributed", "ThreadPools"]
+deps = ["DecisionMakingProblems", "Distributed", "TailRec", "ThreadPools"]
 path = ".."
 uuid = "dac6b303-fdac-48c1-9f18-7af9a7634e9d"
 version = "0.1.0"
